@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
   Breadcrumb,
@@ -17,50 +17,73 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
 interface Message {
-  id: string
+  role: "user" | "ai"
   content: string
-  role: "user" | "assistant"
-  timestamp: Date
+  timestamp: string
 }
 
-interface Chat {
+interface Thread {
   id: string
   title: string
+  createdAt: string
   messages: Message[]
-  lastMessage: string
-  timestamp: Date
 }
 
+const STORAGE_KEY = "chat-threads"
+
 export default function Page() {
-  const [chats, setChats] = useState<Chat[]>([])
-  const [activeChat, setActiveChat] = useState<string | null>(null)
+  const [threads, setThreads] = useState<Thread[]>([])
+  const [activeThread, setActiveThread] = useState<string | null>(null)
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
-  // Get current chat messages
-  const currentMessages = activeChat ? chats.find((chat) => chat.id === activeChat)?.messages || [] : []
+  // Load threads from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedThreads = localStorage.getItem(STORAGE_KEY)
+      if (savedThreads) {
+        const parsedThreads = JSON.parse(savedThreads)
+        setThreads(parsedThreads)
+      }
+    } catch (error) {
+      console.error("Error loading threads from localStorage:", error)
+    }
+  }, [])
 
-  // Generate chat title from first message
-  const generateChatTitle = (firstMessage: string): string => {
+  // Save threads to localStorage whenever threads change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(threads))
+    //   console.log("Loaded threads from localStorage:", threads)
+    } catch (error) {
+      console.error("Error saving threads to localStorage:", error)
+    }
+  }, [threads])
+
+  // Get current thread messages
+  const currentMessages = activeThread ? threads.find((thread) => thread.id === activeThread)?.messages || [] : []
+
+  // Generate thread title from first message
+  const generateThreadTitle = (firstMessage: string): string => {
     if (firstMessage.length <= 50) return firstMessage
     return firstMessage.substring(0, 47) + "..."
   }
 
-  // Create new chat
-  const handleNewChat = () => {
-    setActiveChat(null)
+  // Create new thread
+  const handleNewThread = () => {
+    setActiveThread(null)
   }
 
-  // Select existing chat
-  const handleSelectChat = (chatId: string) => {
-    setActiveChat(chatId)
+  // Select existing thread
+  const handleSelectThread = (threadId: string) => {
+    setActiveThread(threadId)
   }
 
-  // Delete chat
-  const handleDeleteChat = (chatId: string) => {
-    setChats((prev) => prev.filter((chat) => chat.id !== chatId))
-    if (activeChat === chatId) {
-      setActiveChat(null)
+  // Delete thread
+  const handleDeleteThread = (threadId: string) => {
+    setThreads((prev) => prev.filter((thread) => thread.id !== threadId))
+    if (activeThread === threadId) {
+      setActiveThread(null)
     }
   }
 
@@ -68,37 +91,33 @@ export default function Page() {
     if (!content.trim()) return
 
     const userMessage: Message = {
-      id: Date.now().toString(),
-      content: content.trim(),
       role: "user",
-      timestamp: new Date(),
+      content: content.trim(),
+      timestamp: new Date().toISOString(),
     }
 
-    // If no active chat, create a new one
-    if (!activeChat) {
-      const newChatId = Date.now().toString()
-      const newChat: Chat = {
-        id: newChatId,
-        title: generateChatTitle(content.trim()),
+    // If no active thread, create a new one
+    if (!activeThread) {
+      const newThreadId = `thread-${Date.now()}`
+      const newThread: Thread = {
+        id: newThreadId,
+        title: generateThreadTitle(content.trim()),
+        createdAt: new Date().toISOString(),
         messages: [userMessage],
-        lastMessage: content.trim(),
-        timestamp: new Date(),
       }
 
-      setChats((prev) => [newChat, ...prev])
-      setActiveChat(newChatId)
+      setThreads((prev) => [newThread, ...prev])
+      setActiveThread(newThreadId)
     } else {
-      // Add message to existing chat
-      setChats((prev) =>
-        prev.map((chat) =>
-          chat.id === activeChat
+      // Add message to existing thread
+      setThreads((prev) =>
+        prev.map((thread) =>
+          thread.id === activeThread
             ? {
-                ...chat,
-                messages: [...chat.messages, userMessage],
-                lastMessage: content.trim(),
-                timestamp: new Date(),
+                ...thread,
+                messages: [...thread.messages, userMessage],
               }
-            : chat,
+            : thread,
         ),
       )
     }
@@ -108,23 +127,20 @@ export default function Page() {
 
     // Simulate AI response delay
     setTimeout(() => {
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+      const aiMessage: Message = {
+        role: "ai",
         content: `I'll help you with "${content}". Let me create that for you! This is a mock response - in a real implementation, this would connect to an AI service to generate the actual code or content you requested.`,
-        role: "assistant",
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
       }
 
-      setChats((prev) =>
-        prev.map((chat) =>
-          chat.id === activeChat
+      setThreads((prev) =>
+        prev.map((thread) =>
+          thread.id === activeThread
             ? {
-                ...chat,
-                messages: [...chat.messages, assistantMessage],
-                lastMessage: "I'll help you with that...",
-                timestamp: new Date(),
+                ...thread,
+                messages: [...thread.messages, aiMessage],
               }
-            : chat,
+            : thread,
         ),
       )
       setIsLoading(false)
@@ -140,14 +156,22 @@ export default function Page() {
     handleSendMessage(prompt)
   }
 
+  // Convert threads to the format expected by AppSidebar
+  const sidebarChats = threads.map((thread) => ({
+    id: thread.id,
+    title: thread.title,
+    lastMessage: thread.messages[thread.messages.length - 1]?.content || "",
+    timestamp: new Date(thread.createdAt),
+  }))
+
   return (
     <SidebarProvider>
       <AppSidebar
-        chats={chats}
-        activeChat={activeChat}
-        onNewChat={handleNewChat}
-        onSelectChat={handleSelectChat}
-        onDeleteChat={handleDeleteChat}
+        chats={sidebarChats}
+        activeChat={activeThread}
+        onNewChat={handleNewThread}
+        onSelectChat={handleSelectThread}
+        onDeleteChat={handleDeleteThread}
       />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
@@ -161,7 +185,7 @@ export default function Page() {
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
                 <BreadcrumbPage>
-                  {activeChat ? chats.find((c) => c.id === activeChat)?.title || "Chat" : "New Chat"}
+                  {activeThread ? threads.find((t) => t.id === activeThread)?.title || "Thread" : "New Thread"}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
@@ -175,8 +199,8 @@ export default function Page() {
               // Welcome screen
               <div className="flex flex-col items-center justify-center p-8 space-y-8 h-full">
                 <div className="text-center space-y-2">
-                  <h1 className="text-4xl font-semibold">Let's Chat</h1>
-                  <p className="text-muted-foreground">What do you want to know about me?</p>
+                  <h1 className="text-4xl font-semibold">How can I help you today?</h1>
+                  <p className="text-muted-foreground">Choose a suggestion below or type your own message</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
@@ -238,15 +262,17 @@ export default function Page() {
             ) : (
               // Chat messages
               <div className="max-w-4xl mx-auto p-4 space-y-6">
-                {currentMessages.map((message) => (
-                  <div key={message.id} className="flex gap-4">
+                {currentMessages.map((message, index) => (
+                  <div key={`${activeThread}-${index}`} className="flex gap-4">
                     <Avatar className="w-8 h-8 mt-1">
                       <AvatarFallback>{message.role === "user" ? "U" : "AI"}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{message.role === "user" ? "You" : "v0"}</span>
-                        <span className="text-xs text-muted-foreground">{message.timestamp.toLocaleTimeString()}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : ""}
+                        </span>
                       </div>
                       <div className="prose prose-sm max-w-none">
                         <p className="text-sm leading-relaxed">{message.content}</p>
