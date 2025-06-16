@@ -175,8 +175,8 @@ export default function Page() {
               // Welcome screen
               <div className="flex flex-col items-center justify-center p-8 space-y-8 h-full">
                 <div className="text-center space-y-2">
-                  <h1 className="text-4xl font-semibold">How can I help you today?</h1>
-                  <p className="text-muted-foreground">Choose a suggestion below or type your own message</p>
+                  <h1 className="text-4xl font-semibold">Let's Chat</h1>
+                  <p className="text-muted-foreground">What do you want to know about me?</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
