@@ -23,10 +23,46 @@ interface Message {
   timestamp: Date
 }
 
+interface Chat {
+  id: string
+  title: string
+  messages: Message[]
+  lastMessage: string
+  timestamp: Date
+}
+
 export default function Page() {
-  const [messages, setMessages] = useState<Message[]>([])
+  const [chats, setChats] = useState<Chat[]>([])
+  const [activeChat, setActiveChat] = useState<string | null>(null)
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+
+  // Get current chat messages
+  const currentMessages = activeChat ? chats.find((chat) => chat.id === activeChat)?.messages || [] : []
+
+  // Generate chat title from first message
+  const generateChatTitle = (firstMessage: string): string => {
+    if (firstMessage.length <= 50) return firstMessage
+    return firstMessage.substring(0, 47) + "..."
+  }
+
+  // Create new chat
+  const handleNewChat = () => {
+    setActiveChat(null)
+  }
+
+  // Select existing chat
+  const handleSelectChat = (chatId: string) => {
+    setActiveChat(chatId)
+  }
+
+  // Delete chat
+  const handleDeleteChat = (chatId: string) => {
+    setChats((prev) => prev.filter((chat) => chat.id !== chatId))
+    if (activeChat === chatId) {
+      setActiveChat(null)
+    }
+  }
 
   const handleSendMessage = async (content: string) => {
     if (!content.trim()) return
@@ -38,7 +74,35 @@ export default function Page() {
       timestamp: new Date(),
     }
 
-    setMessages((prev) => [...prev, userMessage])
+    // If no active chat, create a new one
+    if (!activeChat) {
+      const newChatId = Date.now().toString()
+      const newChat: Chat = {
+        id: newChatId,
+        title: generateChatTitle(content.trim()),
+        messages: [userMessage],
+        lastMessage: content.trim(),
+        timestamp: new Date(),
+      }
+
+      setChats((prev) => [newChat, ...prev])
+      setActiveChat(newChatId)
+    } else {
+      // Add message to existing chat
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === activeChat
+            ? {
+                ...chat,
+                messages: [...chat.messages, userMessage],
+                lastMessage: content.trim(),
+                timestamp: new Date(),
+              }
+            : chat,
+        ),
+      )
+    }
+
     setInputValue("")
     setIsLoading(true)
 
@@ -50,7 +114,19 @@ export default function Page() {
         role: "assistant",
         timestamp: new Date(),
       }
-      setMessages((prev) => [...prev, assistantMessage])
+
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === activeChat
+            ? {
+                ...chat,
+                messages: [...chat.messages, assistantMessage],
+                lastMessage: "I'll help you with that...",
+                timestamp: new Date(),
+              }
+            : chat,
+        ),
+      )
       setIsLoading(false)
     }, 1500)
   }
@@ -66,7 +142,13 @@ export default function Page() {
 
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar
+        chats={chats}
+        activeChat={activeChat}
+        onNewChat={handleNewChat}
+        onSelectChat={handleSelectChat}
+        onDeleteChat={handleDeleteChat}
+      />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger className="-ml-1" />
@@ -74,11 +156,13 @@ export default function Page() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="#">Building Your Application</BreadcrumbLink>
+                <BreadcrumbLink href="#">v0 Assistant</BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>Chat</BreadcrumbPage>
+                <BreadcrumbPage>
+                  {activeChat ? chats.find((c) => c.id === activeChat)?.title || "Chat" : "New Chat"}
+                </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -87,7 +171,7 @@ export default function Page() {
         <div className="flex flex-1 flex-col h-full">
           {/* Chat messages area or welcome screen */}
           <div className="flex-1 overflow-y-auto">
-            {messages.length === 0 ? (
+            {currentMessages.length === 0 ? (
               // Welcome screen
               <div className="flex flex-col items-center justify-center p-8 space-y-8 h-full">
                 <div className="text-center space-y-2">
@@ -154,7 +238,7 @@ export default function Page() {
             ) : (
               // Chat messages
               <div className="max-w-4xl mx-auto p-4 space-y-6">
-                {messages.map((message) => (
+                {currentMessages.map((message) => (
                   <div key={message.id} className="flex gap-4">
                     <Avatar className="w-8 h-8 mt-1">
                       <AvatarFallback>{message.role === "user" ? "U" : "AI"}</AvatarFallback>

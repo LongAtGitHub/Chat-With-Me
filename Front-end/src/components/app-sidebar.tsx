@@ -1,5 +1,7 @@
+"use client"
+
 import type * as React from "react"
-import { MessageSquarePlus, Search } from "lucide-react"
+import { MessageSquarePlus, Search, MessageSquare, Trash2 } from "lucide-react"
 
 import {
   Sidebar,
@@ -9,24 +11,28 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar"
 
-// Sample potential texts data
-const potentialTexts = [
-  "Create a landing page for a SaaS product",
-  "Build a dashboard with charts and analytics",
-  "Design a blog layout with article cards",
-  "Make a contact form with validation",
-  "Create an e-commerce product page",
-  "Build a pricing table component",
-  "Design a user profile settings page",
-  "Create a todo list application",
-]
+interface Chat {
+  id: string
+  title: string
+  lastMessage: string
+  timestamp: Date
+}
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  chats: Chat[]
+  activeChat: string | null
+  onNewChat: () => void
+  onSelectChat: (chatId: string) => void
+  onDeleteChat: (chatId: string) => void
+}
+
+export function AppSidebar({ chats, activeChat, onNewChat, onSelectChat, onDeleteChat, ...props }: AppSidebarProps) {
   return (
     <Sidebar {...props}>
       <SidebarHeader>{/* Empty header or add logo if needed */}</SidebarHeader>
@@ -37,11 +43,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <a href="#new-chat">
-                    <MessageSquarePlus />
-                    <span>New Chat</span>
-                  </a>
+                <SidebarMenuButton onClick={onNewChat}>
+                  <MessageSquarePlus />
+                  <span>New Chat</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
@@ -56,23 +60,41 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Potential Texts Section */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Suggestions</SidebarGroupLabel>
-          <SidebarGroupContent>
+        {/* Chat History Section */}
+        {chats.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Recent Chats</SidebarGroupLabel>
+            <SidebarGroupContent>
             <SidebarMenu>
-              {potentialTexts.map((text, index) => (
-                <SidebarMenuItem key={index}>
-                  <SidebarMenuButton asChild>
-                    <a href={`#suggestion-${index}`}>
-                      <span className="text-sm text-muted-foreground">{text}</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+  {chats.map((chat) => (
+    <SidebarMenuItem key={chat.id} className="mb-2 last:mb-0"> {/* 👈 margin bottom here */}
+      <SidebarMenuButton
+        onClick={() => onSelectChat(chat.id)}
+        isActive={activeChat === chat.id}
+        className="justify-start"
+      >
+        <MessageSquare className="w-4 h-4" />
+        <div className="flex flex-col items-start flex-1 min-w-0">
+          <span className="text-sm font-medium truncate w-full">{chat.title}</span>
+          <span className="text-xs text-muted-foreground truncate w-full">{chat.lastMessage}</span>
+        </div>
+      </SidebarMenuButton>
+      <SidebarMenuAction
+        onClick={(e) => {
+          e.stopPropagation()
+          onDeleteChat(chat.id)
+        }}
+        className="opacity-0 group-hover:opacity-100"
+      >
+        <Trash2 className="w-4 h-4" />
+      </SidebarMenuAction>
+    </SidebarMenuItem>
+  ))}
+</SidebarMenu>
+
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
       <SidebarRail />
     </Sidebar>
