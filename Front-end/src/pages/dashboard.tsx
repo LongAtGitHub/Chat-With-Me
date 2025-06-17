@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
@@ -17,160 +16,144 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { sendToAI } from "@/api/sendToAI"
 import type { Thread, Message } from "@/types/thread"
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown from "react-markdown"
 
 const STORAGE_KEY = "chat-threads"
 
 export default function Page() {
+    // ===================
+    // # State
+    // ===================
     const [threads, setThreads] = useState<Thread[]>([])
-    const [activeThread, setActiveThread] = useState<string | null>(null) // get the id
+    const [activeThread, setActiveThread] = useState<string | null>(null)
     const [inputValue, setInputValue] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [isInitialized, setIsInitialized] = useState(false)
 
-    // Load threads from localStorage on mount
+    // =========================================
+    // # Effects: Load threads from localStorage
+    // =========================================
     useEffect(() => {
         const loadThreads = () => {
             try {
-                const savedThreads = localStorage.getItem(STORAGE_KEY)
-                if (savedThreads) {
-                    const parsedThreads = JSON.parse(savedThreads) as Thread[]
-                    console.log("Loaded threads from localStorage:", parsedThreads)
-                    setThreads(parsedThreads)
+                const saved = localStorage.getItem(STORAGE_KEY)
+                if (saved) {
+                    setThreads(JSON.parse(saved))
                 } else {
-                    console.log("No threads found in localStorage")
                     setThreads([])
                 }
-            } catch (error) {
-                console.error("Error loading threads from localStorage:", error)
+            } catch (e) {
+                console.error("Error loading threads", e)
                 setThreads([])
             } finally {
                 setIsInitialized(true)
             }
         }
-
         loadThreads()
     }, [])
 
-    // Save threads to localStorage whenever threads change (but only after initialization)
+    // =========================================
+    // # Effects: Save threads to localStorage
+    // =========================================
     useEffect(() => {
         if (!isInitialized) return
-
         try {
-            console.log("Saving threads to localStorage:", threads)
             localStorage.setItem(STORAGE_KEY, JSON.stringify(threads))
-        } catch (error) {
-            console.error("Error saving threads to localStorage:", error)
+        } catch (e) {
+            console.error("Error saving threads", e)
         }
     }, [threads, isInitialized])
 
-    // Get current thread messages
-    const currentMessages = activeThread ? threads.find((thread) => thread.id === activeThread)?.messages || [] : []
+    // =========================================
+    // # Utils
+    // =========================================
+    const generateThreadTitle = (text: string) => text.length <= 50 ? text : text.slice(0, 47) + "..."
 
-    // Generate thread title from first message
-    const generateThreadTitle = (firstMessage: string): string => {
-        if (firstMessage.length <= 50) return firstMessage
-        return firstMessage.substring(0, 47) + "..."
+    const currentMessages = activeThread
+        ? threads.find((t) => t.id === activeThread)?.messages || []
+        : []
+
+    // =========================================
+    // # Handlers: Thread Management
+    // =========================================
+    const handleNewThread = () => setActiveThread(null)
+
+    const handleSelectThread = (id: string) => setActiveThread(id)
+
+    const handleDeleteThread = (id: string) => {
+        setThreads((prev) => prev.filter((t) => t.id !== id))
+        if (activeThread === id) setActiveThread(null)
     }
 
-    // Create new thread
-    const handleNewThread = () => {
-        setActiveThread(null)
-    }
-
-    // Select existing thread
-    const handleSelectThread = (threadId: string) => {
-        setActiveThread(threadId)
-    }
-
-    // Delete thread
-    const handleDeleteThread = (threadId: string) => {
-        setThreads((prevThreads) => {
-            const updatedThreads = prevThreads.filter((thread) => thread.id !== threadId)
-            console.log("Deleting thread:", threadId, "Updated threads:", updatedThreads)
-            return updatedThreads
-        })
-
-        if (activeThread === threadId) {
-            setActiveThread(null)
-        }
-    }
-
-
+    // =========================================
+    // # Handler: Send to AI and save AI response
+    // =========================================
     const handleAiSendPrompt = async (thread: Thread) => {
         try {
-          const aiResponse = await sendToAI(thread);
-          const aiMessage: Message = {
-            role: "ai",
-            content: aiResponse,
-            timestamp: new Date().toISOString(),
-          };
-      
-          setThreads((prevThreads) =>
-            prevThreads.map((t) =>
-              t.id === thread.id
-                ? { ...t, messages: [...t.messages, aiMessage] }
-                : t
+            const aiResponse = await sendToAI(thread)
+            const aiMessage: Message = {
+                role: "ai",
+                content: aiResponse,
+                timestamp: new Date().toISOString(),
+            }
+            setThreads((prev) =>
+                prev.map((t) =>
+                    t.id === thread.id ? { ...t, messages: [...t.messages, aiMessage] } : t
+                )
             )
-          );
-        } catch (error) {
-          console.error("AI call failed:", error);
+        } catch (e) {
+            console.error("AI call failed:", e)
         }
-      };
-      
+    }
 
-      const handleSendMessage = async (content: string) => {
-        if (!content.trim()) return;
-      
+    // =========================================
+    // # Handler: On send message
+    // =========================================
+    const handleSendMessage = async (content: string) => {
+        if (!content.trim()) return
         const userMessage: Message = {
-          role: "user",
-          content: content.trim(),
-          timestamp: new Date().toISOString(),
-        };
-      
-        let threadToUpdate: Thread;
-      
-        // If no active thread, create one
-        if (!activeThread) {
-          const newThreadId = `thread-${Date.now()}`;
-          threadToUpdate = {
-            id: newThreadId,
-            title: generateThreadTitle(content.trim()),
-            createdAt: new Date().toISOString(),
-            messages: [userMessage],
-          };
-      
-          setThreads((prev) => [threadToUpdate, ...prev]);
-          setActiveThread(newThreadId);
-        } else {
-          // Append to existing thread
-          threadToUpdate =
-            threads.find((t) => t.id === activeThread) ?? {
-              id: activeThread,
-              title: "Untitled",
-              createdAt: new Date().toISOString(),
-              messages: [],
-            };
-      
-          threadToUpdate = {
-            ...threadToUpdate,
-            messages: [...threadToUpdate.messages, userMessage],
-          };
-      
-          setThreads((prevThreads) =>
-            prevThreads.map((t) =>
-              t.id === threadToUpdate.id ? threadToUpdate : t
-            )
-          );
+            role: "user",
+            content: content.trim(),
+            timestamp: new Date().toISOString(),
         }
-      
-        setInputValue("");
-        setIsLoading(true);
-        await handleAiSendPrompt(threadToUpdate);
-        setIsLoading(false);
-      };
-      
 
+        let threadToUpdate: Thread
+        if (!activeThread) {
+            const id = `thread-${Date.now()}`
+            threadToUpdate = {
+                id,
+                title: generateThreadTitle(content),
+                createdAt: new Date().toISOString(),
+                messages: [userMessage],
+            }
+            setThreads((prev) => [threadToUpdate, ...prev])
+            setActiveThread(id)
+        } else {
+            threadToUpdate =
+                threads.find((t) => t.id === activeThread) ?? {
+                    id: activeThread,
+                    title: "Untitled",
+                    createdAt: new Date().toISOString(),
+                    messages: [],
+                }
+
+            threadToUpdate = {
+                ...threadToUpdate,
+                messages: [...threadToUpdate.messages, userMessage],
+            }
+
+            setThreads((prev) =>
+                prev.map((t) =>
+                    t.id === threadToUpdate.id ? threadToUpdate : t
+                )
+            )
+        }
+
+        setInputValue("")
+        setIsLoading(true)
+        await handleAiSendPrompt(threadToUpdate)
+        setIsLoading(false)
+    }
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
@@ -181,22 +164,19 @@ export default function Page() {
         handleSendMessage(prompt)
     }
 
-    // Convert threads to the format expected by AppSidebar
-    const sidebarChats = threads.map((thread) => ({
-        id: thread.id,
-        title: thread.title,
-        lastMessage: thread.messages[thread.messages.length - 1]?.content || "",
-        timestamp: new Date(thread.createdAt),
+    // =========================================
+    // # Sidebar Formatting
+    // =========================================
+    const sidebarChats = threads.map((t) => ({
+        id: t.id,
+        title: t.title,
+        lastMessage: t.messages[t.messages.length - 1]?.content || "",
+        timestamp: new Date(t.createdAt),
     }))
 
-    // Debug logging
-    // console.log("Current state:", {
-    //     threadsCount: threads.length,
-    //     activeThread,
-    //     isInitialized,
-    //     sidebarChatsCount: sidebarChats.length,
-    // })
-
+    // =========================================
+    // # UI
+    // =========================================
     return (
         <SidebarProvider>
             <AppSidebar
@@ -207,7 +187,8 @@ export default function Page() {
                 onDeleteChat={handleDeleteThread}
             />
             <SidebarInset>
-                <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+                {/* Header */}
+                <header className="flex h-16 items-center gap-2 border-b px-4">
                     <SidebarTrigger className="-ml-1" />
                     <Separator orientation="vertical" className="mr-2 h-4" />
                     <Breadcrumb>
@@ -218,16 +199,19 @@ export default function Page() {
                             <BreadcrumbSeparator className="hidden md:block" />
                             <BreadcrumbItem>
                                 <BreadcrumbPage>
-                                    {activeThread ? threads.find((t) => t.id === activeThread)?.title || "Thread" : "New Thread"}
+                                    {activeThread
+                                        ? threads.find((t) => t.id === activeThread)?.title || "Thread"
+                                        : "New Thread"}
                                 </BreadcrumbPage>
                             </BreadcrumbItem>
                         </BreadcrumbList>
                     </Breadcrumb>
                 </header>
 
+                {/* Main */}
                 <div className="flex flex-1 flex-col h-full">
-                    {/* Show loading state while initializing */}
                     {!isInitialized ? (
+                        // Loading State
                         <div className="flex-1 flex items-center justify-center">
                             <div className="text-center space-y-2">
                                 <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -236,14 +220,16 @@ export default function Page() {
                         </div>
                     ) : (
                         <>
-                            {/* Chat messages area or welcome screen */}
+                            {/* Chat Area */}
                             <div className="flex-1 overflow-y-auto">
                                 {currentMessages.length === 0 ? (
-                                    // Welcome screen
+                                    // Welcome Prompt
                                     <div className="flex flex-col items-center justify-center p-8 space-y-8 h-full">
                                         <div className="text-center space-y-2">
                                             <h1 className="text-4xl font-semibold">How can I help you today?</h1>
-                                            <p className="text-muted-foreground">Choose a suggestion below or type your own message</p>
+                                            <p className="text-muted-foreground">
+                                                Choose a suggestion below or type your own message
+                                            </p>
                                             {threads.length > 0 && (
                                                 <p className="text-sm text-muted-foreground">
                                                     You have {threads.length} saved conversation{threads.length !== 1 ? "s" : ""}
@@ -251,64 +237,45 @@ export default function Page() {
                                             )}
                                         </div>
 
+                                        {/* Prompt Cards */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
-                                            <button
-                                                onClick={() =>
-                                                    handleCardClick("Create a landing page for a SaaS product with hero section and features")
-                                                }
-                                                className="p-4 text-left border rounded-lg hover:bg-muted/50 transition-colors group"
-                                            >
-                                                <div className="space-y-2">
-                                                    <h3 className="font-medium group-hover:text-primary">Create a landing page</h3>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        Build a modern landing page for a SaaS product with hero section and features
-                                                    </p>
-                                                </div>
-                                            </button>
-
-                                            <button
-                                                onClick={() =>
-                                                    handleCardClick("Build an analytics dashboard with charts, metrics, and data visualization")
-                                                }
-                                                className="p-4 text-left border rounded-lg hover:bg-muted/50 transition-colors group"
-                                            >
-                                                <div className="space-y-2">
-                                                    <h3 className="font-medium group-hover:text-primary">Build a dashboard</h3>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        Create an analytics dashboard with charts, metrics, and data visualization
-                                                    </p>
-                                                </div>
-                                            </button>
-
-                                            <button
-                                                onClick={() => handleCardClick("Design a contact form with validation and modern styling")}
-                                                className="p-4 text-left border rounded-lg hover:bg-muted/50 transition-colors group"
-                                            >
-                                                <div className="space-y-2">
-                                                    <h3 className="font-medium group-hover:text-primary">Design a form</h3>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        Make a contact form with validation and modern styling
-                                                    </p>
-                                                </div>
-                                            </button>
-
-                                            <button
-                                                onClick={() =>
-                                                    handleCardClick("Build a product page with image gallery, reviews, and purchase options")
-                                                }
-                                                className="p-4 text-left border rounded-lg hover:bg-muted/50 transition-colors group"
-                                            >
-                                                <div className="space-y-2">
-                                                    <h3 className="font-medium group-hover:text-primary">E-commerce page</h3>
-                                                    <p className="text-sm text-muted-foreground">
-                                                        Build a product page with image gallery, reviews, and purchase options
-                                                    </p>
-                                                </div>
-                                            </button>
+                                            {[
+                                                {
+                                                    title: "Create a landing page",
+                                                    prompt: "Create a landing page for a SaaS product with hero section and features",
+                                                    desc: "Build a modern landing page for a SaaS product with hero section and features",
+                                                },
+                                                {
+                                                    title: "Build a dashboard",
+                                                    prompt: "Build an analytics dashboard with charts, metrics, and data visualization",
+                                                    desc: "Create an analytics dashboard with charts, metrics, and data visualization",
+                                                },
+                                                {
+                                                    title: "Design a form",
+                                                    prompt: "Design a contact form with validation and modern styling",
+                                                    desc: "Make a contact form with validation and modern styling",
+                                                },
+                                                {
+                                                    title: "E-commerce page",
+                                                    prompt: "Build a product page with image gallery, reviews, and purchase options",
+                                                    desc: "Build a product page with image gallery, reviews, and purchase options",
+                                                },
+                                            ].map((card, i) => (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => handleCardClick(card.prompt)}
+                                                    className="p-4 text-left border rounded-lg hover:bg-muted/50 transition-colors group"
+                                                >
+                                                    <div className="space-y-2">
+                                                        <h3 className="font-medium group-hover:text-primary">{card.title}</h3>
+                                                        <p className="text-sm text-muted-foreground">{card.desc}</p>
+                                                    </div>
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
                                 ) : (
-                                    // Chat messages
+                                    // Chat Messages
                                     <div className="max-w-4xl mx-auto p-4 space-y-6">
                                         {currentMessages.map((message, index) => (
                                             <div key={`${activeThread}-${index}`} className="flex gap-4">
@@ -323,14 +290,12 @@ export default function Page() {
                                                         </span>
                                                     </div>
                                                     <div className="prose prose-sm max-w-none">
-                                                        {/* <p className="text-sm leading-relaxed">{message.content}</p> */}
                                                         <ReactMarkdown>{message.content}</ReactMarkdown>
                                                     </div>
                                                 </div>
                                             </div>
                                         ))}
 
-                                        {/* Loading indicator */}
                                         {isLoading && (
                                             <div className="flex gap-4">
                                                 <Avatar className="w-8 h-8 mt-1">
@@ -343,14 +308,8 @@ export default function Page() {
                                                     </div>
                                                     <div className="flex space-x-1">
                                                         <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
-                                                        <div
-                                                            className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
-                                                            style={{ animationDelay: "0.1s" }}
-                                                        ></div>
-                                                        <div
-                                                            className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"
-                                                            style={{ animationDelay: "0.2s" }}
-                                                        ></div>
+                                                        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+                                                        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -359,7 +318,7 @@ export default function Page() {
                                 )}
                             </div>
 
-                            {/* Input section at bottom */}
+                            {/* Input Field */}
                             <div className="border-t bg-background p-4">
                                 <div className="max-w-4xl mx-auto">
                                     <form onSubmit={handleSubmit} className="relative">
@@ -376,16 +335,7 @@ export default function Page() {
                                             disabled={isLoading || !inputValue.trim()}
                                             className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            <svg
-                                                width="16"
-                                                height="16"
-                                                viewBox="0 0 24 24"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth="2"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                            >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                                 <path d="m22 2-7 20-4-9-9-4Z" />
                                                 <path d="M22 2 11 13" />
                                             </svg>
