@@ -16,26 +16,13 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { sendToAI } from "@/api/sendToAI"
-
-
-interface Message {
-  role: "user" | "ai"
-  content: string
-  timestamp: string
-}
-
-interface Thread {
-  id: string
-  title: string
-  createdAt: string
-  messages: Message[]
-}
+import type {Thread, Message} from "@/types/thread"
 
 const STORAGE_KEY = "chat-threads"
 
 export default function Page() {
   const [threads, setThreads] = useState<Thread[]>([])
-  const [activeThread, setActiveThread] = useState<string | null>(null)
+  const [activeThread, setActiveThread] = useState<string | null>(null) // get the id
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isInitialized, setIsInitialized] = useState(false)
@@ -53,7 +40,6 @@ export default function Page() {
           console.log("No threads found in localStorage")
           setThreads([])
         }
-        handleAiSendPrompt();
       } catch (error) {
         console.error("Error loading threads from localStorage:", error)
         setThreads([])
@@ -110,26 +96,33 @@ export default function Page() {
   }
 
 
-const handleAiSendPrompt = async () => {
-  try {
-    const response = await sendToAI([
-      {
-        role: "system",
-        content: "You are Joker, leader of the Phantom Thieves. Stay in character. Help John.",
-      },
-      {
-        role: "user",
-        content: "Who are you?",
-      },
-    ]);
-
-    console.log("AI response:", response);
-    alert("AI says: " + response);
-  } catch (error) {
-    console.error("AI call failed:", error);
-    alert("Failed to get AI response");
-  }
-};
+//   const handleAiSendPrompt = async () => {
+//     if (!activeThread) return
+  
+//     const thread = threads.find((t) => t.id === activeThread)
+//     if (!thread) return
+  
+//     try {
+//       const aiResponse = await sendToAI(thread)
+  
+//       const aiMessage: Message = {
+//         role: "ai",
+//         content: aiResponse,
+//         timestamp: new Date().toISOString(),
+//       }
+  
+//       setThreads((prevThreads) =>
+//         prevThreads.map((t) =>
+//           t.id === activeThread
+//             ? { ...t, messages: [...t.messages, aiMessage] }
+//             : t
+//         )
+//       )
+//     } catch (error) {
+//       console.error("AI call failed:", error)
+//     }
+//   }
+  
 
 
   const handleSendMessage = async (content: string) => {
@@ -180,12 +173,12 @@ const handleAiSendPrompt = async () => {
 
     setInputValue("")
     setIsLoading(true)
-
     // Simulate AI response delay
+    // let messageOutputContent = await sendToAI(threads);
     setTimeout(() => {
       const aiMessage: Message = {
         role: "ai",
-        content: `I'll help you with "${content}". Let me create that for you! This is a mock response - in a real implementation, this would connect to an AI service to generate the actual code or content you requested.`,
+        content: `Yo What sup I am chatgpt`,
         timestamp: new Date().toISOString(),
       }
 
