@@ -15,6 +15,8 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { sendToAI } from "@/api/sendToAI"
+
 
 interface Message {
   role: "user" | "ai"
@@ -51,6 +53,7 @@ export default function Page() {
           console.log("No threads found in localStorage")
           setThreads([])
         }
+        handleAiSendPrompt();
       } catch (error) {
         console.error("Error loading threads from localStorage:", error)
         setThreads([])
@@ -105,6 +108,29 @@ export default function Page() {
       setActiveThread(null)
     }
   }
+
+
+const handleAiSendPrompt = async () => {
+  try {
+    const response = await sendToAI([
+      {
+        role: "system",
+        content: "You are Joker, leader of the Phantom Thieves. Stay in character. Help John.",
+      },
+      {
+        role: "user",
+        content: "Who are you?",
+      },
+    ]);
+
+    console.log("AI response:", response);
+    alert("AI says: " + response);
+  } catch (error) {
+    console.error("AI call failed:", error);
+    alert("Failed to get AI response");
+  }
+};
+
 
   const handleSendMessage = async (content: string) => {
     if (!content.trim()) return
