@@ -103,6 +103,7 @@ export default function Page() {
             )
         } catch (e) {
             console.error("AI call failed:", e)
+            alert("Server is down right now. No response from AI")
         }
     }
 
