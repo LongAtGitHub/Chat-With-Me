@@ -103,14 +103,28 @@ export default function Page() {
             )
         } catch (e) {
             console.error("AI call failed:", e)
+            alert("The chat bot is currently offline")
+            const fallbackMessage: Message = {
+                role: "ai",
+                content: "⚠️ I'm currently unable to respond. The server may be down or unreachable.",
+                timestamp: new Date().toISOString(),
+            }
+            setThreads((prev) =>
+                prev.map((t) =>
+                    t.id === thread.id ? { ...t, messages: [...t.messages, fallbackMessage] } : t
+                )
+            )
         }
-    }
+    }   
 
     // =========================================
     // # Handler: On send message
     // =========================================
     const handleSendMessage = async (content: string) => {
-        if (!content.trim()) return
+        if (!content.trim()) {
+            console.log("content is not trimmed")
+            return
+        }
         const userMessage: Message = {
             role: "user",
             content: content.trim(),
