@@ -49,7 +49,7 @@ export function AppSidebar({ chats, activeChat, onNewChat, onSelectChat, onDelet
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
+                <SidebarMenuButton asChild onClick={() => alert("This feature is to be implemented")}>
                   <a href="#search">
                     <Search />
                     <span>Search</span>
