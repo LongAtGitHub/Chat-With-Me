@@ -1,7 +1,6 @@
 // src/api/sendToAI.ts
 import type { Thread } from "@/types/thread"; // We'll make this
 
-// const API_URL = import.meta.env.VITE_AI_API_URL || "http://localhost:8787"
 const API_URL = import.meta.env.VITE_AI_API_URL
 console.log(API_URL)
 export async function sendToAI(thread: Thread): Promise<string> {

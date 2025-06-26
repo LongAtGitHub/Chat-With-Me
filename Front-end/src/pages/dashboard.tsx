@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { sendToAI } from "@/api/sendToAI"
 import type { Thread, Message } from "@/types/thread"
 import ReactMarkdown from "react-markdown"
+import { AvatarImage } from "@radix-ui/react-avatar"
 
 const STORAGE_KEY = "chat-threads"
 
@@ -208,7 +209,7 @@ export default function Page() {
                     <Breadcrumb>
                         <BreadcrumbList>
                             <BreadcrumbItem className="hidden md:block">
-                                <BreadcrumbLink href="#">v0 Assistant</BreadcrumbLink>
+                                <BreadcrumbLink onClick={() => handleNewThread()}>Chat With Me</BreadcrumbLink>
                             </BreadcrumbItem>
                             <BreadcrumbSeparator className="hidden md:block" />
                             <BreadcrumbItem>
@@ -253,28 +254,31 @@ export default function Page() {
 
                                         {/* Prompt Cards */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-4xl">
-                                            {[
-                                                {
-                                                    title: "Create a landing page",
-                                                    prompt: "Create a landing page for a SaaS product with hero section and features",
-                                                    desc: "Build a modern landing page for a SaaS product with hero section and features",
-                                                },
-                                                {
-                                                    title: "Build a dashboard",
-                                                    prompt: "Build an analytics dashboard with charts, metrics, and data visualization",
-                                                    desc: "Create an analytics dashboard with charts, metrics, and data visualization",
-                                                },
-                                                {
-                                                    title: "Design a form",
-                                                    prompt: "Design a contact form with validation and modern styling",
-                                                    desc: "Make a contact form with validation and modern styling",
-                                                },
-                                                {
-                                                    title: "E-commerce page",
-                                                    prompt: "Build a product page with image gallery, reviews, and purchase options",
-                                                    desc: "Build a product page with image gallery, reviews, and purchase options",
-                                                },
-                                            ].map((card, i) => (
+                                            {
+                                           [
+                                            {
+                                              title: "What is this project for?",
+                                              prompt: "What is this project about and what problems does it solve?",
+                                              desc: "Explain the purpose and goal of this AI chat app project.",
+                                            },
+                                            {
+                                              title: "Who is the one behind this project?",
+                                              prompt: "Who made this app? Tell me about the person behind it.",
+                                              desc: "Reveal the creator of this app and their motivations.",
+                                            },
+                                            {
+                                              title: "Tell me about him",
+                                              prompt: "Tell me more about Long, the person who built this app.",
+                                              desc: "Give a brief personal intro about Long and what he’s like.",
+                                            },
+                                            {
+                                              title: "What was this project detail?",
+                                              prompt: "What technologies, tools, and design were used to build this app?",
+                                              desc: "Explain the tech stack and implementation behind the app.",
+                                            }
+                                          ]
+                                          
+                                            .map((card, i) => (
                                                 <button
                                                     key={i}
                                                     onClick={() => handleCardClick(card.prompt)}
@@ -294,11 +298,12 @@ export default function Page() {
                                         {currentMessages.map((message, index) => (
                                             <div key={`${activeThread}-${index}`} className="flex gap-4">
                                                 <Avatar className="w-8 h-8 mt-1">
+                                                    {message.role !== "user" && <AvatarImage src="img/Long-cropped.png" />}
                                                     <AvatarFallback>{message.role === "user" ? "U" : "AI"}</AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex-1 space-y-2">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="font-medium">{message.role === "user" ? "You" : "v0"}</span>
+                                                        <span className="font-medium">{message.role === "user" ? "You" : "Long's Bot"}</span>
                                                         <span className="text-xs text-muted-foreground">
                                                             {message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : ""}
                                                         </span>
@@ -313,11 +318,12 @@ export default function Page() {
                                         {isLoading && (
                                             <div className="flex gap-4">
                                                 <Avatar className="w-8 h-8 mt-1">
+                                                    <AvatarImage src="img/Long-cropped.png" />
                                                     <AvatarFallback>AI</AvatarFallback>
                                                 </Avatar>
                                                 <div className="flex-1 space-y-2">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="font-medium">v0</span>
+                                                        <span className="font-medium">Long's Bot</span>
                                                         <span className="text-xs text-muted-foreground">typing...</span>
                                                     </div>
                                                     <div className="flex space-x-1">
@@ -340,7 +346,7 @@ export default function Page() {
                                             type="text"
                                             value={inputValue}
                                             onChange={(e) => setInputValue(e.target.value)}
-                                            placeholder="Message v0..."
+                                            placeholder="Message me..."
                                             disabled={isLoading}
                                             className="w-full px-4 py-3 pr-12 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none disabled:opacity-50"
                                         />
@@ -356,7 +362,7 @@ export default function Page() {
                                         </button>
                                     </form>
                                     <p className="text-xs text-muted-foreground mt-2 text-center">
-                                        v0 can make mistakes. Consider checking important information.
+                                        This app can make mistakes. Consider checking important information.
                                     </p>
                                 </div>
                             </div>
